@@ -35,7 +35,7 @@ def ventana_agregar_usuario():
     return sg.Window('Agregar Usuario', layout, finalize=True)
 
 # Ventana principal
-def ventana_principal(configuracion):
+def ventana_principal(configuracion, eventos):
     layout = [
         [sg.TabGroup([
             [sg.Tab('Eventos', [
@@ -53,6 +53,7 @@ def ventana_principal(configuracion):
                 [sg.Image(key='-IMAGE-', size=(100, 100))]
             ])],
             [sg.Tab('Participantes', [
+                [sg.Text('Selecciona el evento'), sg.Combo([], key='-EVENTO-', size=(30, 1))],
                 [sg.Text('Nombre'), sg.InputText(key='-NOMBRE_PARTICIPANTE-')],
                 [sg.Text('Tipo Documento'), sg.InputText(key='-TIPO_DOCUMENTO-')],
                 [sg.Text('Número Documento'), sg.InputText(key='-NUMERO_DOCUMENTO-')],
@@ -61,7 +62,7 @@ def ventana_principal(configuracion):
                 [sg.Text('Tipo Participante'), sg.Combo(['Estudiante', 'Otro'], key='-TIPO_PARTICIPANTE-')],
                 [sg.Button('Agregar Participante'), sg.Button('Modificar Participante'), sg.Button('Eliminar Participante')],
                 [sg.Table(
-                    headings=['Nombre', 'Tipo Documento', 'Número Documento', 'Teléfono', 'Dirección', 'Tipo Participante'],
+                    headings=['Nombre', 'Tipo Documento', 'Número Documento', 'Teléfono', 'Dirección', 'Tipo Participante', 'Evento'],
                     values=[], size=(80, 10), key='-TABLE_PARTICIPANTES-', enable_events=True
                 )],
             ])],
@@ -71,7 +72,7 @@ def ventana_principal(configuracion):
                 [sg.Checkbox('Solicitar imágenes', key='-SOLICITAR_IMAGENES-', default=configuracion.get('solicitar_imagenes', True))],
                 [sg.Checkbox('Modificar registros', key='-MODIFICAR_REGISTROS-', default=configuracion.get('modificar_registros', True))],
                 [sg.Checkbox('Eliminar Registros', key='-ELIMINAR_REGISTROS-', default=configuracion.get('eliminar_registros', True))],
-                [sg.Button('Guardar Configuración')]
+                [sg.Button('Guardar Config uración')]
             ])],
         ])]
     ]
@@ -126,7 +127,7 @@ while True:
         if usuario in usuarios and usuarios[usuario] == password:
             sg.popup('Login exitoso')
             window_login.close()
-            window_principal = ventana_principal(configuracion)
+            window_principal = ventana_principal(configuracion, eventos)
         else:
             sg.popup_error('Usuario o contraseña incorrectos')
 
@@ -167,6 +168,7 @@ while True:
                         raise ValueError("Ya existe un evento con este nombre")
                     eventos.append([nombre, fecha, int(cupo), lugar, hora, imagen])
                     window['-TABLE-'].update(eventos)
+                    window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
                 except Exception as e:
                     sg.popup_error(f"Error: {e}")
             else:
@@ -178,6 +180,7 @@ while True:
             if selected_row is not None:
                 eventos[selected_row] = [values['-NOMBRE-'], values['-FECHA-'], values['-CUPO-'], values['-LUGAR-'], values['-HORA-'], values['-IMAGEN-']]
                 window['-TABLE-'].update(eventos)
+                window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
             else:
                 sg.popup_error("Seleccione un evento para modificar")
 
@@ -185,8 +188,9 @@ while True:
         if event == 'Eliminar':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
             if selected_row is not None:
-                eventos.pop(selected_row)
+                eventos.pop (selected_row)
                 window['-TABLE-'].update(eventos)
+                window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
             else:
                 sg.popup_error("Seleccione un evento para eliminar")
 
@@ -198,13 +202,14 @@ while True:
             telefono = values['-TELEFONO-']
             direccion = values['-DIRECCION-']
             tipo_participante = values['-TIPO_PARTICIPANTE-']
-            if nombre and tipo_documento and numero_documento and telefono and direccion and tipo_participante:
+            evento_seleccionado = values['-EVENTO-']
+            if nombre and tipo_documento and numero_documento and telefono and direccion and tipo_participante and evento_seleccionado:
                 try:
                     if not numero_documento.isdigit():
                         raise ValueError("El número de documento debe ser numérico")
                     if any(p[2] == numero_documento for p in participantes):
                         raise ValueError("Ya existe un participante con este número de documento")
-                    participantes.append([nombre, tipo_documento, numero_documento, telefono, direccion, tipo_participante])
+                    participantes.append([nombre, tipo_documento, numero_documento, telefono, direccion, tipo_participante, evento_seleccionado])
                     window['-TABLE_PARTICIPANTES-'].update(participantes)
                 except Exception as e:
                     sg.popup_error(f"Error: {e}")
@@ -221,7 +226,8 @@ while True:
                     values['-NUMERO_DOCUMENTO-'],
                     values['-TELEFONO-'],
                     values['-DIRECCION-'],
-                    values['-TIPO_PARTICIPANTE-']
+                    values['-TIPO_PARTICIPANTE-'],
+                    values['-EVENTO-']
                 ]
                 window['-TABLE_PARTICIPANTES-'].update(participantes)
             else:
