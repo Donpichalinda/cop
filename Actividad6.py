@@ -45,7 +45,7 @@ def ventana_principal(configuracion, eventos):
                 [sg.Text('Lugar'), sg.InputText(key='-LUGAR-')],
                 [sg.Text('Hora'), sg.InputText(key='-HORA-')],
                 [sg.Text('Imagen'), sg.InputText(key='-IMAGEN-'), sg.FileBrowse('Buscar')],
-                [sg.Button('Agregar'), sg.Button('Modificar'), sg.Button('Eliminar')],
+                [sg.Button('Agregar'), sg.Button('Modificar', key='-MODIFICAR_EVENTO-', visible=True), sg.Button('Eliminar', key='-ELIMINAR_EVENTO-', visible=True)],
                 [sg.Table(
                     headings=['Nombre', 'Fecha', 'Cupo', 'Lugar', 'Hora', 'Imagen'],
                     values=[], size=(80, 10), key='-TABLE-', enable_events=True
@@ -60,7 +60,7 @@ def ventana_principal(configuracion, eventos):
                 [sg.Text('Teléfono'), sg.InputText(key='-TELEFONO-')],
                 [sg.Text('Dirección'), sg.InputText(key='-DIRECCION-')],
                 [sg.Text('Tipo Participante'), sg.Combo(['Estudiante', 'Otro'], key='-TIPO_PARTICIPANTE-')],
-                [sg.Button('Agregar Participante'), sg.Button('Modificar Participante'), sg.Button('Eliminar Participante')],
+                [sg.Button('Agregar Participante'), sg.Button('Modificar Participante', key='-MODIFICAR_PARTICIPANTE-', visible=True), sg.Button('Eliminar Participante', key='-ELIMINAR_PARTICIPANTE-', visible=True)],
                 [sg.Table(
                     headings=['Nombre', 'Tipo Documento', 'Número Documento', 'Teléfono', 'Dirección', 'Tipo Participante', 'Evento'],
                     values=[], size=(80, 10), key='-TABLE_PARTICIPANTES-', enable_events=True
@@ -68,15 +68,22 @@ def ventana_principal(configuracion, eventos):
             ])],
             [sg.Tab('Configuración', [
                 [sg.Text('Configuración')],
-                [sg.Checkbox('Validar Aforo al agregar participantes', key='-VALIDAR_AFORO-', default=configuracion.get('validar_aforo', True))],
-                [sg.Checkbox('Solicitar imágenes', key='-SOLICITAR_IMAGENES-', default=configuracion.get('solicitar_imagenes', True))],
-                [sg.Checkbox('Modificar registros', key='-MODIFICAR_REGISTROS-', default=configuracion.get('modificar_registros', True))],
-                [sg.Checkbox('Eliminar Registros', key='-ELIMINAR_REGISTROS-', default=configuracion.get('eliminar_registros', True))],
-                [sg.Button('Guardar Config uración')]
+                [sg.Checkbox('Validar Aforo al agregar participantes', key='-VALIDAR_AFORO-', default=configuracion.get('validar_aforo', True), enable_events=True)],
+                [sg.Checkbox('Solicitar imágenes', key='-SOLICITAR_IMAGENES-', default=configuracion.get('solicitar_imagenes', True), enable_events=True)],
+                [sg.Checkbox('Modificar registros', key='-MODIFICAR_REGISTROS-', default=configuracion.get('modificar_registros', True), enable_events=True)],
+                [sg.Checkbox('Eliminar Registros', key='-ELIMINAR_REGISTROS-', default=configuracion.get('eliminar_registros', True), enable_events=True)],
+                [sg.Button('Guardar Configuración', key='-GUARDAR_CONFIG-', visible=True)],
             ])],
         ])]
     ]
     return sg.Window('Gestión de Eventos', layout, finalize=True)
+
+# Función para manejar la visibilidad de los botones
+def manejar_visibilidad_boton(window, values):
+    window['-MODIFIC_EVENTO-'].update(visible=values['-MODIFICAR_REGISTROS-'])
+    window['-ELIMINAR_EVENTO-'].update(visible=values['-ELIMINAR_REGISTROS-'])
+    window['-MODIFICAR_PARTICIPANTE-'].update(visible=values['-MODIFICAR_REGISTROS-'])
+    window['-ELIMINAR_PARTICIPANTE-'].update(visible=values['-ELIMINAR_REGISTROS-'])
 
 # Guardar datos en archivo JSON
 def guardar_json(filename, data):
@@ -165,7 +172,7 @@ while True:
                     if not cupo.isdigit():
                         raise ValueError("El cupo debe ser un número")
                     if any(e[0] == nombre for e in eventos):
-                        raise ValueError("Ya existe un evento con este nombre")
+                        raise ValueError ("Ya existe un evento con este nombre")
                     eventos.append([nombre, fecha, int(cupo), lugar, hora, imagen])
                     window['-TABLE-'].update(eventos)
                     window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
@@ -175,7 +182,7 @@ while True:
                 sg.popup_error("Complete todos los campos para agregar un evento")
 
         # Modificar evento
-        if event == 'Modificar':
+        if event == '-MODIFICAR_EVENTO-':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
             if selected_row is not None:
                 eventos[selected_row] = [values['-NOMBRE-'], values['-FECHA-'], values['-CUPO-'], values['-LUGAR-'], values['-HORA-'], values['-IMAGEN-']]
@@ -185,10 +192,10 @@ while True:
                 sg.popup_error("Seleccione un evento para modificar")
 
         # Eliminar evento
-        if event == 'Eliminar':
+        if event == '-ELIMINAR_EVENTO-':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
             if selected_row is not None:
-                eventos.pop (selected_row)
+                eventos.pop(selected_row)
                 window['-TABLE-'].update(eventos)
                 window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
             else:
@@ -217,7 +224,7 @@ while True:
                 sg.popup_error("Complete todos los campos para agregar un participante")
 
         # Modificar participante
-        if event == 'Modificar Participante':
+        if event == '-MODIFICAR_PARTICIPANTE-':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
             if selected_row is not None:
                 participantes[selected_row] = [
@@ -234,7 +241,7 @@ while True:
                 sg.popup_error("Seleccione un participante para modificar")
 
         # Eliminar participante
-        if event == 'Eliminar Participante':
+        if event == '-ELIMINAR_PARTICIPANTE-':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
             if selected_row is not None:
                 participantes.pop(selected_row)
@@ -248,7 +255,11 @@ while True:
             configuracion['solicitar_imagenes'] = values['-SOLICITAR_IMAGENES-']
             configuracion['modificar_registros'] = values['-MODIFICAR_REGISTROS-']
             configuracion['eliminar_registros'] = values['-ELIMINAR_REGISTROS-']
-            guardar_json("configuracion.json", configuracion)
+            guardar_json("configuracion.json ", configuracion)
             sg.popup('Configuración guardada exitosamente')
+
+        # Manejar la visibilidad de los botones según el estado de los checkboxes
+        if event in ['-VALIDAR_AFORO-', '-SOLICITAR_IMAGENES-', '-MODIFICAR_REGISTROS-', '-ELIMINAR_REGISTROS-']:
+            manejar_visibilidad_boton(window_principal, values)
 
 window.close()
