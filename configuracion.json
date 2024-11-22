@@ -1,1 +1,6 @@
-[]
+{
+    "validar_aforo": true,
+    "solicitar_imagenes": true,
+    "modificar_registros": true,
+    "eliminar_registros": true
+}

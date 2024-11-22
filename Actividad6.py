@@ -35,7 +35,7 @@ def ventana_agregar_usuario():
     return sg.Window('Agregar Usuario', layout, finalize=True)
 
 # Ventana principal
-def ventana_principal():
+def ventana_principal(configuracion):
     layout = [
         [sg.TabGroup([
             [sg.Tab('Eventos', [
@@ -65,6 +65,14 @@ def ventana_principal():
                     values=[], size=(80, 10), key='-TABLE_PARTICIPANTES-', enable_events=True
                 )],
             ])],
+            [sg.Tab('Configuración', [
+                [sg.Text('Configuración')],
+                [sg.Checkbox('Validar Aforo al agregar participantes', key='-VALIDAR_AFORO-', default=configuracion.get('validar_aforo', True))],
+                [sg.Checkbox('Solicitar imágenes', key='-SOLICITAR_IMAGENES-', default=configuracion.get('solicitar_imagenes', True))],
+                [sg.Checkbox('Modificar registros', key='-MODIFICAR_REGISTROS-', default=configuracion.get('modificar_registros', True))],
+                [sg.Checkbox('Eliminar Registros', key='-ELIMINAR_REGISTROS-', default=configuracion.get('eliminar_registros', True))],
+                [sg.Button('Guardar Configuración')]
+            ])],
         ])]
     ]
     return sg.Window('Gestión de Eventos', layout, finalize=True)
@@ -78,14 +86,21 @@ def guardar_json(filename, data):
 def cargar_json(filename):
     if os.path.exists(filename):
         with open(filename, "r") as f:
-            return json.load(f)
-    return []
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}  # Retornar un diccionario vacío si hay un error de decodificación
+    return {}
 
 # Inicializar datos
 usuarios = leer_usuarios()
 eventos = cargar_json("eventos.json")
 participantes = cargar_json("participantes.json")
 configuracion = cargar_json("configuracion.json")
+
+# Asegurarse de que configuracion sea un diccionario
+if not isinstance(configuracion, dict):
+    configuracion = {}
 
 # Ventana de login
 window_login = ventana_login()
@@ -94,6 +109,7 @@ window_agregar_usuario = None
 
 while True:
     window, event, values = sg.read_all_windows()
+
     # Cerrar aplicación
     if event == sg.WINDOW_CLOSED or event == 'Salir':
         window.close()
@@ -102,6 +118,7 @@ while True:
             guardar_json("participantes.json", participantes)
             guardar_json("configuracion.json", configuracion)
             break
+
     # Login
     if event == 'Iniciar Sesión':
         usuario = values['-USUARIO-'].strip()
@@ -109,12 +126,14 @@ while True:
         if usuario in usuarios and usuarios[usuario] == password:
             sg.popup('Login exitoso')
             window_login.close()
-            window_principal = ventana_principal()
+            window_principal = ventana_principal(configuracion)
         else:
             sg.popup_error('Usuario o contraseña incorrectos')
+
     # Agregar usuario
     if event == 'Agregar Usuario':
         window_agregar_usuario = ventana_agregar_usuario()
+
     # Guardar nuevo usuario
     if window == window_agregar_usuario:
         if event == 'Guardar':
@@ -130,6 +149,7 @@ while True:
         
         if event == 'Cancelar':
             window_agregar_usuario.close()
+
     # Ventana principal: Eventos
     if window == window_principal:
         if event == 'Agregar':
@@ -151,6 +171,7 @@ while True:
                     sg.popup_error(f"Error: {e}")
             else:
                 sg.popup_error("Complete todos los campos para agregar un evento")
+
         # Modificar evento
         if event == 'Modificar':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
@@ -159,6 +180,7 @@ while True:
                 window['-TABLE-'].update(eventos)
             else:
                 sg.popup_error("Seleccione un evento para modificar")
+
         # Eliminar evento
         if event == 'Eliminar':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
@@ -167,6 +189,7 @@ while True:
                 window['-TABLE-'].update(eventos)
             else:
                 sg.popup_error("Seleccione un evento para eliminar")
+
         # Participantes
         if event == 'Agregar Participante':
             nombre = values['-NOMBRE_PARTICIPANTE-']
@@ -181,18 +204,13 @@ while True:
                         raise ValueError("El número de documento debe ser numérico")
                     if any(p[2] == numero_documento for p in participantes):
                         raise ValueError("Ya existe un participante con este número de documento")
-                    # Verificar cupo
-                    evento_seleccionado = values['-TABLE-'][0] if values['-TABLE-'] else None
-                    if evento_seleccionado is not None:
-                        cupo_evento = eventos[evento_seleccionado][2]
-                        if len(participantes) >= cupo_evento:
-                            raise ValueError("El número de participantes excede el cupo del evento")
                     participantes.append([nombre, tipo_documento, numero_documento, telefono, direccion, tipo_participante])
                     window['-TABLE_PARTICIPANTES-'].update(participantes)
                 except Exception as e:
                     sg.popup_error(f"Error: {e}")
             else:
                 sg.popup_error("Complete todos los campos para agregar un participante")
+
         # Modificar participante
         if event == 'Modificar Participante':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
@@ -208,6 +226,7 @@ while True:
                 window['-TABLE_PARTICIPANTES-'].update(participantes)
             else:
                 sg.popup_error("Seleccione un participante para modificar")
+
         # Eliminar participante
         if event == 'Eliminar Participante':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
@@ -216,4 +235,14 @@ while True:
                 window['-TABLE_PARTICIPANTES-'].update(participantes)
             else:
                 sg.popup_error("Seleccione un participante para eliminar")
+
+        # Guardar configuración
+        if event == 'Guardar Configuración':
+            configuracion['validar_aforo'] = values['-VALIDAR_AFORO-']
+            configuracion['solicitar_imagenes'] = values['-SOLICITAR_IMAGENES-']
+            configuracion['modificar_registros'] = values['-MODIFICAR_REGISTROS-']
+            configuracion['eliminar_registros'] = values['-ELIMINAR_REGISTROS-']
+            guardar_json("configuracion.json", configuracion)
+            sg.popup('Configuración guardada exitosamente')
+
 window.close()
