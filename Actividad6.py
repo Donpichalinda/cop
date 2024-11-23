@@ -34,7 +34,7 @@ def ventana_agregar_usuario():
     ]
     return sg.Window('Agregar Usuario', layout, finalize=True)
 
-# Ventana principal
+# Ventana principal con nueva funcionalidad de análisis
 def ventana_principal(configuracion, eventos):
     layout = [
         [sg.TabGroup([
@@ -66,6 +66,15 @@ def ventana_principal(configuracion, eventos):
                     values=[], size=(80, 10), key='-TABLE_PARTICIPANTES-', enable_events=True
                 )],
             ])],
+            [sg.Tab('Análisis', [
+                [sg.Text('Participantes que fueron a todos los eventos')],
+                [sg.Multiline(size=(60, 5), key='-TODOS_EVENTOS-', disabled=True)],
+                [sg.Text('Participantes que fueron al menos a un evento')],
+                [sg.Multiline(size=(60, 5), key='-AL_MENOS_UNO-', disabled=True)],
+                [sg.Text('Participantes que fueron solo al primer evento')],
+                [sg.Multiline(size=(60, 5), key='-SOLO_PRIMERO-', disabled=True)],
+                [sg.Button('Actualizar Análisis', key='-ACTUALIZAR_ANALISIS-')]
+            ])],
             [sg.Tab('Configuración', [
                 [sg.Text('Configuración')],
                 [sg.Checkbox('Validar Aforo al agregar participantes', key='-VALIDAR_AFORO-', default=configuracion.get('validar_aforo', True), enable_events=True)],
@@ -77,6 +86,28 @@ def ventana_principal(configuracion, eventos):
         ])]
     ]
     return sg.Window('Gestión de Eventos', layout, finalize=True)
+
+# Lógica para el análisis
+def realizar_analisis(eventos, participantes):
+    # Convertir los eventos a un conjunto para facilitar la comparación
+    eventos_nombres = {evento[0] for evento in eventos}
+    participantes_eventos = {}
+
+# Crear un diccionario con participantes y los eventos a los que asistieron
+    for participante in participantes:
+        nombre = participante[0]
+        evento = participante[6]  # Evento al que asistió
+        if nombre not in participantes_eventos:
+            participantes_eventos[nombre] = set()
+        participantes_eventos[nombre].add(evento)
+
+    # Cálculos
+    todos_eventos = [nombre for nombre, eventos in participantes_eventos.items() if eventos == eventos_nombres]
+    al_menos_uno = list(participantes_eventos.keys())
+    primer_evento = next(iter(eventos_nombres), None)  # Obtener el primer evento
+    solo_primer_evento = [nombre for nombre, eventos in participantes_eventos.items() if eventos == {primer_evento}]
+
+    return todos_eventos, al_menos_uno, solo_primer_evento
 
 # Función para manejar la visibilidad de los botones
 def manejar_visibilidad_boton(window, values):
@@ -180,6 +211,12 @@ while True:
                     sg.popup_error(f"Error: {e}")
             else:
                 sg.popup_error("Complete todos los campos para agregar un evento")
+
+        if event == '-ACTUALIZAR_ANALISIS-':
+            todos_eventos, al_menos_uno, solo_primer_evento = realizar_analisis(eventos, participantes)
+            window['-TODOS_EVENTOS-'].update('\n'.join(todos_eventos))
+            window['-AL_MENOS_UNO-'].update('\n'.join(al_menos_uno))
+            window['-SOLO_PRIMERO-'].update('\n'.join(solo_primer_evento))
 
         # Modificar evento
         if event == '-MODIFICAR_EVENTO-':
