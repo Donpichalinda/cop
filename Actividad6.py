@@ -1,6 +1,9 @@
 import PySimpleGUI as sg
 import json
 import os
+import matplotlib.pyplot as plt
+from io import BytesIO
+import pandas as pd
 
 # Función para leer usuarios desde un archivo
 def leer_usuarios():
@@ -39,12 +42,9 @@ def ventana_principal(configuracion, eventos):
     layout = [
         [sg.TabGroup([
             [sg.Tab('Eventos', [
-                [sg.Text('Nombre Evento'), sg.InputText(key='-NOMBRE-')],
-                [sg.Text('Fecha'), sg.InputText(key='-FECHA-')],
-                [sg.Text('Cupo'), sg.InputText(key='-CUPO-')],
-                [sg.Text('Lugar'), sg.InputText(key='-LUGAR-')],
-                [sg.Text('Hora'), sg.InputText(key='-HORA-')],
-                [sg.Text('Imagen'), sg.InputText(key='-IMAGEN-'), sg.FileBrowse('Buscar')],
+                [sg.Text('Nombre Evento'), sg.InputText(key='-NOMBRE-', size=(25, 1)), sg.Text('Fecha'), sg.InputText(key='-FECHA-', size=(25, 1))],
+                [sg.Text('Cupo'), sg.InputText(key='-CUPO-', size=(25, 1)), sg.Text('Lugar'), sg.InputText(key='-LUGAR-', size=(25, 1))],
+                [sg.Text('Hora'), sg.InputText(key='-HORA-', size=(25, 1)), sg.Text('Imagen'), sg.InputText(key='-IMAGEN-', size=(25, 1)), sg.FileBrowse('Buscar')],
                 [sg.Button('Agregar'), sg.Button('Modificar', key='-MODIFICAR_EVENTO-', visible=True), sg.Button('Eliminar', key='-ELIMINAR_EVENTO-', visible=True)],
                 [sg.Table(
                     headings=['Nombre', 'Fecha', 'Cupo', 'Lugar', 'Hora', 'Imagen'],
@@ -53,12 +53,9 @@ def ventana_principal(configuracion, eventos):
                 [sg.Image(key='-IMAGE-', size=(100, 100))]
             ])],
             [sg.Tab('Participantes', [
-                [sg.Text('Selecciona el evento'), sg.Combo([], key='-EVENTO-', size=(30, 1))],
-                [sg.Text('Nombre'), sg.InputText(key='-NOMBRE_PARTICIPANTE-')],
-                [sg.Text('Tipo Documento'), sg.InputText(key='-TIPO_DOCUMENTO-')],
-                [sg.Text('Número Documento'), sg.InputText(key='-NUMERO_DOCUMENTO-')],
-                [sg.Text('Teléfono'), sg.InputText(key='-TELEFONO-')],
-                [sg.Text('Dirección'), sg.InputText(key='-DIRECCION-')],
+                [sg.Text('Selecciona el evento'), sg.Combo([], key='-EVENTO-', size=(20, 1)), sg.Text('Nombre'), sg.InputText(key='-NOMBRE_PARTICIPANTE-', size=(25, 1))],
+                [sg.Text('Tipo Documento'), sg.InputText(key='-TIPO_DOCUMENTO-', size=(25, 1)), sg.Text('Número Documento'), sg.InputText(key='-NUMERO_DOCUMENTO-', size=(25, 1))],
+                [sg.Text('Teléfono'), sg.InputText(key='-TELEFONO-', size=(25, 1)), sg.Text('Dirección'), sg.InputText(key='-DIRECCION-', size=(25, 1))],
                 [sg.Text('Tipo Participante'), sg.Combo(['Estudiante', 'Otro'], key='-TIPO_PARTICIPANTE-')],
                 [sg.Button('Agregar Participante'), sg.Button('Modificar Participante', key='-MODIFICAR_PARTICIPANTE-', visible=True), sg.Button('Eliminar Participante', key='-ELIMINAR_PARTICIPANTE-', visible=True)],
                 [sg.Table(
@@ -68,12 +65,18 @@ def ventana_principal(configuracion, eventos):
             ])],
             [sg.Tab('Análisis', [
                 [sg.Text('Participantes que fueron a todos los eventos')],
-                [sg.Multiline(size=(60, 5), key='-TODOS_EVENTOS-', disabled=True)],
+                [sg.Multiline (size=(60, 5), key='-TODOS_EVENTOS-', disabled=True)],
                 [sg.Text('Participantes que fueron al menos a un evento')],
                 [sg.Multiline(size=(60, 5), key='-AL_MENOS_UNO-', disabled=True)],
                 [sg.Text('Participantes que fueron solo al primer evento')],
                 [sg.Multiline(size=(60, 5), key='-SOLO_PRIMERO-', disabled=True)],
                 [sg.Button('Actualizar Análisis', key='-ACTUALIZAR_ANALISIS-')]
+            ])],
+            [sg.Tab('Gráficos', [
+                [sg.Text('Seleccione tipo de gráfico')],
+                [sg.Combo(['Barras', 'Pastel', 'Línea'], key='-TIPO_GRAFICO-', size=(30, 1))],
+                [sg.Button('Generar Gráfico', key='-GENERAR_GRAFICO-')],
+                [sg.Image(key='-GRAFICO-', size=(500, 500))]
             ])],
             [sg.Tab('Configuración', [
                 [sg.Text('Configuración')],
@@ -87,31 +90,57 @@ def ventana_principal(configuracion, eventos):
     ]
     return sg.Window('Gestión de Eventos', layout, finalize=True)
 
+# Función para generar gráficos
+def generar_grafico(eventos, participantes, tipo_grafico):
+    fig, ax = plt.subplots(figsize=(6, 4))
+    if tipo_grafico == 'Barras':
+        df = pd.DataFrame(eventos, columns=['Nombre', 'Fecha', 'Cupo', 'Lugar', 'Hora', 'Imagen'])
+        lugares = df['Lugar'].value_counts()
+        lugares.plot(kind='bar', ax=ax, title='Eventos por Lugar', color='skyblue')
+        ax.set_xlabel('Lugar')
+        ax.set_ylabel('Número de Eventos')
+    elif tipo_grafico == 'Pastel':
+        df = pd.DataFrame(participantes, columns=['Nombre', 'Tipo Documento', 'Número Documento', 'Teléfono', 'Dirección', 'Tipo Participante', 'Evento'])
+        eventos_participantes = df['Evento'].value_counts()
+        eventos_participantes.plot(kind='pie', ax=ax, title='Participantes por Evento', autopct='%1.1f%%')
+        ax.set_ylabel('')  # Eliminar la etiqueta del eje y
+    elif tipo_grafico == 'Línea':
+        df = pd.DataFrame(participantes, columns=['Nombre', 'Tipo Documento', 'Número Documento', 'Teléfono', 'Dirección', 'Tipo Participante', 'Evento'])
+        eventos_participantes = df['Evento'].value_counts()
+        eventos_participantes.plot(kind='line', ax=ax, title='Participantes por Evento', marker='o')
+        ax.set_xlabel('Evento')
+        ax.set_ylabel('Número de Participantes')
+    else:
+        plt.text(0.5, 0.5, 'Seleccione un gráfico válido', ha='center', va='center', fontsize=12)
+    
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close(fig)  # Cerrar la figura para liberar memoria
+    return buf
+
 # Lógica para el análisis
 def realizar_analisis(eventos, participantes):
-    # Convertir los eventos a un conjunto para facilitar la comparación
     eventos_nombres = {evento[0] for evento in eventos}
     participantes_eventos = {}
 
-# Crear un diccionario con participantes y los eventos a los que asistieron
     for participante in participantes:
         nombre = participante[0]
-        evento = participante[6]  # Evento al que asistió
+        evento = participante[6]
         if nombre not in participantes_eventos:
             participantes_eventos[nombre] = set()
         participantes_eventos[nombre].add(evento)
 
-    # Cálculos
     todos_eventos = [nombre for nombre, eventos in participantes_eventos.items() if eventos == eventos_nombres]
     al_menos_uno = list(participantes_eventos.keys())
-    primer_evento = next(iter(eventos_nombres), None)  # Obtener el primer evento
+    primer_evento = next(iter(eventos_nombres), None)
     solo_primer_evento = [nombre for nombre, eventos in participantes_eventos.items() if eventos == {primer_evento}]
 
     return todos_eventos, al_menos_uno, solo_primer_evento
 
 # Función para manejar la visibilidad de los botones
 def manejar_visibilidad_boton(window, values):
-    window['-MODIFIC_EVENTO-'].update(visible=values['-MODIFICAR_REGISTROS-'])
+    window['-MODIFICAR_EVENTO-'].update(visible=values['-MODIFICAR_REGISTROS-'])
     window['-ELIMINAR_EVENTO-'].update(visible=values['-ELIMINAR_REGISTROS-'])
     window['-MODIFICAR_PARTICIPANTE-'].update(visible=values['-MODIFICAR_REGISTROS-'])
     window['-ELIMINAR_PARTICIPANTE-'].update(visible=values['-ELIMINAR_REGISTROS-'])
@@ -128,7 +157,7 @@ def cargar_json(filename):
             try:
                 return json.load(f)
             except json.JSONDecodeError:
-                return {}  # Retornar un diccionario vacío si hay un error de decodificación
+                return {}
     return {}
 
 # Inicializar datos
@@ -137,11 +166,9 @@ eventos = cargar_json("eventos.json")
 participantes = cargar_json("participantes.json")
 configuracion = cargar_json("configuracion.json")
 
-# Asegurarse de que configuracion sea un diccionario
 if not isinstance(configuracion, dict):
     configuracion = {}
 
-# Ventana de login
 window_login = ventana_login()
 window_principal = None
 window_agregar_usuario = None
@@ -149,16 +176,15 @@ window_agregar_usuario = None
 while True:
     window, event, values = sg.read_all_windows()
 
-    # Cerrar aplicación
     if event == sg.WINDOW_CLOSED or event == 'Salir':
         window.close()
         if window == window_principal:
             guardar_json("eventos.json", eventos)
             guardar_json("participantes.json", participantes)
             guardar_json("configuracion.json", configuracion)
+        if window == window_login:
             break
 
-    # Login
     if event == 'Iniciar Sesión':
         usuario = values['-USUARIO-'].strip()
         password = values['-PASSWORD-'].strip()
@@ -169,27 +195,23 @@ while True:
         else:
             sg.popup_error('Usuario o contraseña incorrectos')
 
-    # Agregar usuario
     if event == 'Agregar Usuario':
         window_agregar_usuario = ventana_agregar_usuario()
 
-    # Guardar nuevo usuario
     if window == window_agregar_usuario:
         if event == 'Guardar':
             nuevo_usuario = values['-NUEVO_USUARIO-'].strip()
             nueva_contrasena = values['-NUEVA_CONTRASENA-'].strip()
             if nuevo_usuario and nueva_contrasena:
                 agregar_usuario(nuevo_usuario, nueva_contrasena)
-                usuarios[nuevo_usuario] = nueva_contrasena  # Actualizar la lista de usuarios
+                usuarios[nuevo_usuario] = nueva_contrasena
                 sg.popup('Usuario agregado exitosamente')
                 window_agregar_usuario.close()
             else:
                 sg.popup_error('Complete todos los campos para agregar un usuario')
-        
         if event == 'Cancelar':
             window_agregar_usuario.close()
 
-    # Ventana principal: Eventos
     if window == window_principal:
         if event == 'Agregar':
             nombre = values['-NOMBRE-']
@@ -203,10 +225,10 @@ while True:
                     if not cupo.isdigit():
                         raise ValueError("El cupo debe ser un número")
                     if any(e[0] == nombre for e in eventos):
-                        raise ValueError ("Ya existe un evento con este nombre")
+                        raise ValueError("Ya existe un evento con este nombre")
                     eventos.append([nombre, fecha, int(cupo), lugar, hora, imagen])
                     window['-TABLE-'].update(eventos)
-                    window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
+                    window['-EVENTO-'].update(values=[e[0] for e in eventos])
                 except Exception as e:
                     sg.popup_error(f"Error: {e}")
             else:
@@ -218,27 +240,32 @@ while True:
             window['-AL_MENOS_UNO-'].update('\n'.join(al_menos_uno))
             window['-SOLO_PRIMERO-'].update('\n'.join(solo_primer_evento))
 
-        # Modificar evento
+        if event == '-GENERAR_GRAFICO-':
+            tipo_grafico = values['-TIPO_GRAFICO-']
+            if tipo_grafico:
+                buf = generar_grafico(eventos, participantes, tipo_grafico)
+                window['-GRAFICO-'].update(data=buf.getvalue())
+            else:
+                sg.popup_error('Seleccione un tipo de gráfico para generar')
+
         if event == '-MODIFICAR_EVENTO-':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
             if selected_row is not None:
                 eventos[selected_row] = [values['-NOMBRE-'], values['-FECHA-'], values['-CUPO-'], values['-LUGAR-'], values['-HORA-'], values['-IMAGEN-']]
                 window['-TABLE-'].update(eventos)
-                window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
+                window['-EVENTO-'].update(values=[e[0] for e in eventos])
             else:
                 sg.popup_error("Seleccione un evento para modificar")
 
-        # Eliminar evento
         if event == '-ELIMINAR_EVENTO-':
             selected_row = values['-TABLE-'][0] if values['-TABLE-'] else None
             if selected_row is not None:
                 eventos.pop(selected_row)
                 window['-TABLE-'].update(eventos)
-                window['-EVENTO-'].update(values=[e[0] for e in eventos])  # Actualizar ComboBox
+                window['-EVENTO-'].update(values=[e[0] for e in eventos])
             else:
                 sg.popup_error("Seleccione un evento para eliminar")
 
-        # Participantes
         if event == 'Agregar Participante':
             nombre = values['-NOMBRE_PARTICIPANTE-']
             tipo_documento = values['-TIPO_DOCUMENTO-']
@@ -260,7 +287,6 @@ while True:
             else:
                 sg.popup_error("Complete todos los campos para agregar un participante")
 
-        # Modificar participante
         if event == '-MODIFICAR_PARTICIPANTE-':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
             if selected_row is not None:
@@ -277,7 +303,6 @@ while True:
             else:
                 sg.popup_error("Seleccione un participante para modificar")
 
-        # Eliminar participante
         if event == '-ELIMINAR_PARTICIPANTE-':
             selected_row = values['-TABLE_PARTICIPANTES-'][0] if values['-TABLE_PARTICIPANTES-'] else None
             if selected_row is not None:
@@ -286,16 +311,14 @@ while True:
             else:
                 sg.popup_error("Seleccione un participante para eliminar")
 
-        # Guardar configuración
         if event == 'Guardar Configuración':
             configuracion['validar_aforo'] = values['-VALIDAR_AFORO-']
             configuracion['solicitar_imagenes'] = values['-SOLICITAR_IMAGENES-']
             configuracion['modificar_registros'] = values['-MODIFICAR_REGISTROS-']
             configuracion['eliminar_registros'] = values['-ELIMINAR_REGISTROS-']
-            guardar_json("configuracion.json ", configuracion)
+            guardar_json("configuracion.json", configuracion)
             sg.popup('Configuración guardada exitosamente')
 
-        # Manejar la visibilidad de los botones según el estado de los checkboxes
         if event in ['-VALIDAR_AFORO-', '-SOLICITAR_IMAGENES-', '-MODIFICAR_REGISTROS-', '-ELIMINAR_REGISTROS-']:
             manejar_visibilidad_boton(window_principal, values)
 
